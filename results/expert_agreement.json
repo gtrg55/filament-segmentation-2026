@@ -1,0 +1,45 @@
+{
+  "three_copy_observations": 151,
+  "human_vs_human_all": {
+    "pq": 0.3399,
+    "tp": 4292,
+    "fp": 3709,
+    "fn": 3709,
+    "mean_tp_iou": 0.6337
+  },
+  "human_vs_human_three_copy": {
+    "pq": 0.3334,
+    "tp": 3174,
+    "fp": 2840,
+    "fn": 2840,
+    "mean_tp_iou": 0.6318
+  },
+  "consensus_agreed_first_mask": {
+    "pq": 0.313,
+    "tp": 1129,
+    "fp": 457,
+    "fn": 1877,
+    "mean_tp_iou": 0.6366
+  },
+  "consensus_agreed_union": {
+    "pq": 0.3259,
+    "tp": 1149,
+    "fp": 437,
+    "fn": 1857,
+    "mean_tp_iou": 0.6512
+  },
+  "consensus_agreed_intersection": {
+    "pq": 0.3093,
+    "tp": 1101,
+    "fp": 485,
+    "fn": 1905,
+    "mean_tp_iou": 0.6451
+  },
+  "consensus_all_union": {
+    "pq": 0.3381,
+    "tp": 2019,
+    "fp": 2409,
+    "fn": 1081,
+    "mean_tp_iou": 0.6304
+  }
+}

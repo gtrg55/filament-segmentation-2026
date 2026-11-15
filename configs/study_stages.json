@@ -1,0 +1,18 @@
+{
+  "ground_truth": "data/processed/yolo_seg_observation_split_v1/gt_val.csv",
+  "final": "ensemble_largest",
+  "stages": [
+    {"name": "single", "label": "1 detector, 1 view", "caches": ["analysis/research/d4_cache_ft_e5"], "views": [0],
+     "threshold": [0.10, 0.13, 0.16, 0.18, 0.21, 0.25, 0.30], "erosion": 0},
+    {"name": "erosion", "label": "+ 3x3 erosion", "caches": ["analysis/research/d4_cache_ft_e5"], "views": [0],
+     "threshold": [0.10, 0.13, 0.16, 0.18, 0.21, 0.25, 0.30], "erosion": 3},
+    {"name": "d4", "label": "+ 8 dihedral views", "caches": ["analysis/research/d4_cache_ft_e5"], "views": "0-7",
+     "threshold": 0.18, "erosion": 3},
+    {"name": "ensemble", "label": "+ 5 more detectors", "views": "0-7", "threshold": 0.18, "erosion": 3,
+     "caches": ["analysis/research/d4_cache_ft_e5", "analysis/research/d4cache/fold0_holdout", "analysis/research/d4cache/fold1_holdout",
+                "analysis/research/d4cache/fold2_holdout", "analysis/research/d4cache/fold3_holdout", "analysis/research/d4cache/fold4_holdout"]},
+    {"name": "ensemble_largest", "label": "+ largest component", "views": "0-7", "threshold": 0.18, "erosion": 3, "largest": true,
+     "caches": ["analysis/research/d4_cache_ft_e5", "analysis/research/d4cache/fold0_holdout", "analysis/research/d4cache/fold1_holdout",
+                "analysis/research/d4cache/fold2_holdout", "analysis/research/d4cache/fold3_holdout", "analysis/research/d4cache/fold4_holdout"]}
+  ]
+}

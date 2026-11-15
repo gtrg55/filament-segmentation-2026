@@ -1,0 +1,128 @@
+% Technical report template (acmart sigconf). Numbers written as a name between double at-signs are filled
+% by tools/fill_report.py from results/final_results.json so that text, tables and figures stay consistent.
+\documentclass[sigconf]{acmart}
+\settopmatter{printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\setcopyright{none}
+\acmConference[]{}{}{}
+\acmYear{2026}
+\acmISBN{}
+\acmDOI{}
+\pagestyle{plain}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\emergencystretch=1.5em
+
+\begin{document}
+
+\title{Solar Filament Instance Segmentation with Test-Time Voting}
+\subtitle{A Solution to the Solar Filament Segmentation Challenge 2026} % DO NOT CHANGE
+
+\author{@@author@@}
+\affiliation{%
+  \institution{Independent}
+  \country{@@country@@}
+}
+
+\begin{abstract}
+This report describes our solution to the Solar Filament Segmentation Challenge 2026, a Kaggle competition on automatic segmentation of solar filaments in GONG H-$\alpha$ observations.
+We train YOLO11s-seg instance detectors on the provided annotations only and combine @@n_models@@ detectors and @@n_views@@ dihedral test-time views by instance-level voting, followed by a $3\times3$ erosion and largest-component filtering.
+On an observation-grouped holdout the pipeline reaches a Panoptic Quality of @@pq_final@@ (95\% CI @@pq_final_ci@@), above the @@pq_human@@ agreement between independent experts.
+We report observation-level uncertainty, agreement among independent annotations and the effect of the main pipeline stages.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+This report goes over the details of our submitted solution to the Solar Filament Segmentation Challenge 2026~\cite{challenge}. The challenge, launched on July 10, 2026, is organized by the Earth-Space AI Research (ESAIR) Lab\footnote{www.esairlab.com/}. This challenge utilizes the MAGFiLO dataset for evaluation of the segmentation algorithms~\cite{magfilo}.
+We fine-tune COCO-initialized detectors on the provided training images and annotations. Each prediction uses the pixels of a single provided H-$\alpha$ image. We compare changes using paired bootstrap intervals over physical observations.
+
+\section{Methodology}
+\paragraph{Data and splits.}
+The training set has @@n_train_obs@@ physical observations with @@n_copies@@ independent annotator copies and @@n_instances@@ filament polygons. A copy is one annotator's labelling of an image; the same JPEG therefore appears up to three times with different labels. Splitting by image id would leak the image between folds, so all splits are by physical observation and stratified by observatory: @@n_fit_obs@@ observations for fitting and @@n_holdout_obs@@ (@@n_holdout_copies@@ copies) as a holdout that is never used for training. Five observation-grouped folds of the fitting part provide out-of-fold predictions and the ensemble members.
+
+\paragraph{Detector.}
+We use YOLO11s-seg~\cite{ultralytics} initialised from COCO weights. Each annotator copy is a separate training example, so the network learns the \emph{typical} annotator. Stage~1 trains for 40 epochs at 1024\,px (mosaic, scale and colour augmentation); stage~2 fine-tunes at the native 2048\,px for 5 (first detector) or 6 (fold detectors) epochs (AdamW, learning rate $10^{-4}$, no mosaic). The fold detectors use fixed epoch counts and their last checkpoints, so no checkpoint is selected on held-out data; the first detector starts stage~2 from the validation-best epoch of its stage-1 run (epoch 39 of 40, 0.003 mask mAP$_{50\text{--}95}$ above the last epoch).
+
+\paragraph{Inference pipeline (Fig.~\ref{fig:pipeline}).}
+\begin{enumerate}\itemsep0pt
+\item Every detector is applied to the @@n_views@@ dihedral views of the image; masks are mapped back to the original frame.
+\item Instances of all (detector, view) sources are clustered by IoU\,$>$\,0.3 with at most one member per source. The fused mask is the pixel vote of the members (at least half), its score the sum of member confidences divided by the number of sources.
+\item Contested pixels go to the higher score, instances with a score below @@threshold@@ are dropped.
+\item Each mask is eroded with a $3\times3$ elliptical kernel. The detector predicts masks at quarter resolution and its outlines are systematically wider than the annotators' polygons; the erosion is the single most important post-processing step (@@gain_erosion@@ PQ).
+@@largest_component_step@@
+\end{enumerate}
+The repository\footnote{\url{https://github.com/gtrg55/filament-segmentation-2026}} contains the weights and a demo notebook for reproducing the predictions.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\columnwidth]{fig_pipeline.pdf}
+\caption{Inference pipeline: dihedral views of one or more detectors, instance voting, overlap resolution, erosion and RLE export.}
+\label{fig:pipeline}
+\end{figure}
+
+\paragraph{Alternatives evaluated.}
+Paired comparisons covered other inference scales, softer box NMS, mask filtering and a ResNet34 U-Net. We also trained two filters on out-of-fold weak detections. A feature-based scorer and an image-crop classifier gave $\Delta$PQ of $-0.0010$ and $-0.0007$ against the frozen ensemble. Both 95\% intervals include zero.
+
+\section{Evaluation}
+\paragraph{Protocol.}
+We reproduce the organizers' self-evaluation: every annotator copy is scored against the prediction of its observation, a pair with IoU\,$>$\,0.5 is a true positive, and Panoptic Quality~\cite{pq}, PQ\,=\,$\sum \mathrm{IoU}_{TP}/(|TP|+\tfrac12|FP|+\tfrac12|FN|)$, is pooled over copies. We also report the mean Dice of the union masks, the mean IoU and Dice of overlapping pairs and the rates of one-to-many (a ground-truth filament overlapped by $\ge2$ predictions) and many-to-one relations. Uncertainty is a bootstrap over observations (4000 draws); every change is compared with its parent by a \emph{paired} bootstrap on the same resamples. We chose the score threshold, erosion and largest-component step on out-of-fold predictions from the fitting split. The holdout was used for ensemble comparisons and the first detector's stage-1 checkpoint. Its repeated use limits how directly these intervals generalize to new observations.
+
+\paragraph{Expert agreement.}
+Scoring each annotator against the other annotators of the same image gives PQ @@pq_human@@ across 296 observations with two or three copies. The mean IoU among matched masks is 0.634. On observations with three copies, consensus masks from two annotators score 0.31--0.34 against the third across the rules tested. These scores describe variability across independent annotations.
+
+\paragraph{Results.}
+Table~\ref{tab:results} lists the holdout PQ of every pipeline stage with the paired gain over the previous stage; Fig.~\ref{fig:results} shows the same intervals next to the expert-agreement level.
+@@results_table@@
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_results.pdf}
+\caption{Left: PQ with 95\% bootstrap intervals for the pipeline stages and the expert-agreement level. Middle and right: IoU and Dice of overlapping prediction/ground-truth pairs and one-to-many / many-to-one rates of the final pipeline.}
+\label{fig:results}
+\end{figure*}
+
+@@variants_block@@
+
+\paragraph{Morphology of the predicted masks.}
+@@morphology_text@@
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_examples.pdf}
+\caption{Holdout crops (768$\times$768\,px of 2048) of observations at the 90th, 65th, 35th and 10th percentile of per-observation PQ (not hand-picked): outlines of one annotator copy (orange) and of the predicted instances (blue).}
+\label{fig:examples}
+\end{figure*}
+
+\paragraph{Where the errors are.}
+@@errors_text@@
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_errors.pdf}
+\caption{Share of annotated filaments that are matched (recall) and of predicted instances that match an annotator (precision), by area quintile on the holdout; bars are 95\% observation-level bootstrap intervals.}
+\label{fig:errors}
+\end{figure}
+
+\paragraph{Leaderboard calibration.}
+@@calibration_text@@
+@@second_submission_text@@
+
+\paragraph{Earlier control submissions.} Early in the competition we also submitted outputs derived from public notebooks as attributed controls (public scores between 0.34 and 0.56). They are not part of this solution; the two final submissions come only from the detectors described here.
+
+\paragraph{Strengths, weaknesses, improvements.}
+@@strengths_text@@
+
+\begin{acks}
+The organization of the Filament Segmentation Challenge 2026 is partially supported by the U.S. National Science Foundation (NSF) under Grant No. 2209912 and 2433781, directorate for Computer and Information Science and Engineering (CSE), and Office of Advanced Cyberinfrastructure (OAC), and Grant No. 2511630, AST Division Of Astronomical Sciences and MPS Directorate for Mathematical and Physical Sciences.
+
+The Filament Segmentation Challenge 2026 is sponsored by the U.S. National Science Foundation (NSF) National Solar Observatory (NSO).
+
+This work utilizes GONG data obtained by the NSO Integrated Synoptic Program, managed by the National Solar Observatory, which is operated by the Association of Universities for Research in Astronomy (AURA), Inc. under a cooperative agreement with the National Science Foundation and with contribution from the National Oceanic and Atmospheric Administration. The GONG network of instruments is hosted by the Big Bear Solar Observatory, High Altitude Observatory, Learmonth Solar Observatory, Udaipur Solar Observatory, Instituto de Astrof\'isica de Canarias, and Cerro Tololo Interamerican Observatory.
+\end{acks}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{main}
+
+\end{document}

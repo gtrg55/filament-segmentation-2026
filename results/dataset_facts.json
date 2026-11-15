@@ -1,0 +1,10 @@
+{
+  "train_observations": 707,
+  "train_copies": 1154,
+  "train_instances": 8199,
+  "fit_observations": 566,
+  "holdout_observations": 141,
+  "holdout_copies": 229,
+  "holdout_instances": 1610,
+  "note": "counts of the official training release; the holdout is a stratified-by-observatory split by physical observation"
+}
